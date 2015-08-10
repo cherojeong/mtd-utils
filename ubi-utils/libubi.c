@@ -32,6 +32,9 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef __CYGWIN__
+#include <cygwin/ioctl.h>
+#endif
 #include <libubi.h>
 #include "libubi_int.h"
 #include "common.h"

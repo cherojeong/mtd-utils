@@ -168,7 +168,7 @@ static void print_ubi_info(const struct mtd_info *mtd_info,
 	}
 
 	ubigen_info_init(&ui, mtd->eb_size, mtd->min_io_size, mtd->subpage_size,
-			 0, 1, 0);
+			 0, 1, 0, 0);
 	printf("Default UBI VID header offset:  %d\n", ui.vid_hdr_offs);
 	printf("Default UBI data offset:        %d\n", ui.data_offs);
 	printf("Default UBI LEB size:           ");

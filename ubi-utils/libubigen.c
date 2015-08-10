@@ -36,10 +36,11 @@
 #include <libubigen.h>
 #include <crc32.h>
 #include "common.h"
+#include "include/ubi-fastmap.h"
 
 void ubigen_info_init(struct ubigen_info *ui, int peb_size, int min_io_size,
 		      int subpage_size, int vid_hdr_offs, int ubi_ver,
-		      uint32_t image_seq)
+		      uint32_t image_seq, int max_leb_count)
 {
 	if (!vid_hdr_offs) {
 		vid_hdr_offs = UBI_EC_HDR_SIZE + subpage_size - 1;
@@ -61,6 +62,7 @@ void ubigen_info_init(struct ubigen_info *ui, int peb_size, int min_io_size,
 	if (ui->max_volumes > UBI_MAX_VOLUMES)
 		ui->max_volumes = UBI_MAX_VOLUMES;
 	ui->vtbl_size = ui->max_volumes * UBI_VTBL_RECORD_SIZE;
+	ui->max_leb_count = (max_leb_count > 0 ? max_leb_count : 0);
 }
 
 struct ubi_vtbl_record *ubigen_create_empty_vtbl(const struct ubigen_info *ui)
@@ -84,7 +86,7 @@ struct ubi_vtbl_record *ubigen_create_empty_vtbl(const struct ubigen_info *ui)
 }
 
 int ubigen_add_volume(const struct ubigen_info *ui,
-		      const struct ubigen_vol_info *vi,
+		      struct ubigen_vol_info *vi,
 		      struct ubi_vtbl_record *vtbl)
 {
 	struct ubi_vtbl_record *vtbl_rec = &vtbl[vi->id];
@@ -103,7 +105,6 @@ int ubigen_add_volume(const struct ubigen_info *ui,
 		errno = EINVAL;
 		return -1;
 	}
-
 	memset(vtbl_rec, 0, sizeof(struct ubi_vtbl_record));
 	tmp = (vi->bytes + ui->leb_size - 1) / ui->leb_size;
 	vtbl_rec->reserved_pebs = cpu_to_be32(tmp);
@@ -119,6 +120,7 @@ int ubigen_add_volume(const struct ubigen_info *ui,
 
 	tmp = mtd_crc32(UBI_CRC32_INIT, vtbl_rec, UBI_VTBL_RECORD_SIZE_CRC);
 	vtbl_rec->crc =	 cpu_to_be32(tmp);
+	vi->reserved_pebs = 0;
 	return 0;
 }
 
@@ -169,11 +171,13 @@ void ubigen_init_vid_hdr(const struct ubigen_info *ui,
 }
 
 int ubigen_write_volume(const struct ubigen_info *ui,
-			const struct ubigen_vol_info *vi, long long ec,
-			long long bytes, int in, int out)
+			struct ubigen_vol_info *vi, long long ec,
+			long long bytes, int in, int out, struct list_head *used,
+			int *used_cnt)
 {
 	int len = vi->usable_leb_size, rd, lnum = 0;
 	char *inbuf, *outbuf;
+	struct ubi_wl_peb *new_peb;
 
 	if (vi->id >= ui->max_volumes) {
 		errmsg("too high volume id %d, max. volumes is %d",
@@ -228,6 +232,17 @@ int ubigen_write_volume(const struct ubigen_info *ui,
 		memset(outbuf + ui->data_offs + len, 0xFF,
 		       ui->peb_size - ui->data_offs - len);
 
+		new_peb = malloc(sizeof(*new_peb));
+		if (!new_peb) {
+			sys_errmsg("mem allocation failed");
+			goto out_free1;
+		}
+		new_peb->pnum = (*used_cnt)++;
+		new_peb->ec = ec;
+		list_add_tail(&new_peb->list, used);
+		if (vi->pebs)
+			vi->pebs[lnum] = new_peb->pnum;
+		vi->reserved_pebs++;
 		if (write(out, outbuf, ui->peb_size) != ui->peb_size) {
 			sys_errmsg("cannot write %d bytes to the output file", ui->peb_size);
 			goto out_free1;
@@ -235,7 +250,6 @@ int ubigen_write_volume(const struct ubigen_info *ui,
 
 		lnum += 1;
 	}
-
 	free(outbuf);
 	free(inbuf);
 	return 0;
@@ -249,29 +263,41 @@ out_free:
 
 int ubigen_write_layout_vol(const struct ubigen_info *ui, int peb1, int peb2,
 			    long long ec1, long long ec2,
-			    struct ubi_vtbl_record *vtbl, int fd)
+			    struct ubi_vtbl_record *vtbl, int fd,
+			    struct ubigen_vol_info *vi_layout)
 {
 	int ret;
-	struct ubigen_vol_info vi;
+	struct ubigen_vol_info *vi;
 	char *outbuf;
 	struct ubi_vid_hdr *vid_hdr;
 	off_t seek;
 
-	vi.bytes = ui->leb_size * UBI_LAYOUT_VOLUME_EBS;
-	vi.id = UBI_LAYOUT_VOLUME_ID;
-	vi.alignment = UBI_LAYOUT_VOLUME_ALIGN;
-	vi.data_pad = ui->leb_size % UBI_LAYOUT_VOLUME_ALIGN;
-	vi.usable_leb_size = ui->leb_size - vi.data_pad;
-	vi.data_pad = ui->leb_size - vi.usable_leb_size;
-	vi.type = UBI_LAYOUT_VOLUME_TYPE;
-	vi.name = UBI_LAYOUT_VOLUME_NAME;
-	vi.name_len = strlen(UBI_LAYOUT_VOLUME_NAME);
-	vi.compat = UBI_LAYOUT_VOLUME_COMPAT;
+	if (vi_layout) {
+		vi = vi_layout;
+	} else {
+		vi = malloc(sizeof(*vi));
+		if (!vi)
+			return sys_errmsg("failed to allocate %lu bytes",
+					sizeof(*vi));
+	}
+	vi->bytes = ui->leb_size * UBI_LAYOUT_VOLUME_EBS;
+	vi->id = UBI_LAYOUT_VOLUME_ID;
+	vi->alignment = UBI_LAYOUT_VOLUME_ALIGN;
+	vi->data_pad = ui->leb_size % UBI_LAYOUT_VOLUME_ALIGN;
+	vi->usable_leb_size = ui->leb_size - vi->data_pad;
+	vi->data_pad = ui->leb_size - vi->usable_leb_size;
+	vi->type = UBI_LAYOUT_VOLUME_TYPE;
+	vi->name = UBI_LAYOUT_VOLUME_NAME;
+	vi->name_len = strlen(UBI_LAYOUT_VOLUME_NAME);
+	vi->compat = UBI_LAYOUT_VOLUME_COMPAT;
 
 	outbuf = malloc(ui->peb_size);
-	if (!outbuf)
+	if (!outbuf) {
+		if (!vi_layout)
+			free(vi);
 		return sys_errmsg("failed to allocate %d bytes",
 				  ui->peb_size);
+	}
 
 	memset(outbuf, 0xFF, ui->data_offs);
 	vid_hdr = (struct ubi_vid_hdr *)(&outbuf[ui->vid_hdr_offs]);
@@ -282,34 +308,38 @@ int ubigen_write_layout_vol(const struct ubigen_info *ui, int peb1, int peb2,
 	seek = (off_t) peb1 * ui->peb_size;
 	if (lseek(fd, seek, SEEK_SET) != seek) {
 		sys_errmsg("cannot seek output file");
+		ret = -1;
 		goto out_free;
 	}
 
 	ubigen_init_ec_hdr(ui, (struct ubi_ec_hdr *)outbuf, ec1);
-	ubigen_init_vid_hdr(ui, &vi, vid_hdr, 0, NULL, 0);
+	ubigen_init_vid_hdr(ui, vi, vid_hdr, 0, NULL, 0);
 	ret = write(fd, outbuf, ui->peb_size);
 	if (ret != ui->peb_size) {
 		sys_errmsg("cannot write %d bytes", ui->peb_size);
+		ret = -1;
 		goto out_free;
 	}
 
 	seek = (off_t) peb2 * ui->peb_size;
 	if (lseek(fd, seek, SEEK_SET) != seek) {
 		sys_errmsg("cannot seek output file");
+		ret = -1;
 		goto out_free;
 	}
 	ubigen_init_ec_hdr(ui, (struct ubi_ec_hdr *)outbuf, ec2);
-	ubigen_init_vid_hdr(ui, &vi, vid_hdr, 1, NULL, 0);
+	ubigen_init_vid_hdr(ui, vi, vid_hdr, 1, NULL, 0);
 	ret = write(fd, outbuf, ui->peb_size);
 	if (ret != ui->peb_size) {
 		sys_errmsg("cannot write %d bytes", ui->peb_size);
+		ret = -1;
 		goto out_free;
 	}
 
-	free(outbuf);
-	return 0;
-
+	ret = 0;
 out_free:
+	if (!vi_layout)
+		free(vi);
 	free(outbuf);
-	return -1;
+	return ret;
 }

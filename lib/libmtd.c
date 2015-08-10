@@ -32,7 +32,9 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <inttypes.h>
-
+#ifdef __CYGWIN__
+#include <cygwin/ioctl.h>
+#endif
 #include <mtd/mtd-user.h>
 #include <libmtd.h>
 

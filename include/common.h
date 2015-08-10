@@ -122,10 +122,19 @@ static inline bool prompt(const char *msg, bool def)
 		}
 
 		if (strcmp("\n", line) != 0) {
+#if __CYGWIN__	
+          switch (line[0]) { 
+            case 'N': 
+            case 'n': ret = false; break; 
+            case 'Y': 
+            case 'y': ret = true; break; 
+            default: 
+#else	
 			switch (rpmatch(line)) {
 			case 0: ret = false; break;
 			case 1: ret = true; break;
 			case -1:
+#endif			
 				puts("unknown response; please try again");
 				continue;
 			}

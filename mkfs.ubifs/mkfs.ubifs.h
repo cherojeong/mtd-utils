@@ -32,7 +32,14 @@
 #include <endian.h>
 #include <byteswap.h>
 #include <linux/types.h>
+#ifdef __linux__
 #include <linux/fs.h>
+#else
+# ifndef O_LARGEFILE
+#  define O_LARGEFILE 0
+# endif
+# define llseek lseek
+#endif
 
 #include <getopt.h>
 #include <sys/types.h>

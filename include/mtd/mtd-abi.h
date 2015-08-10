@@ -171,9 +171,12 @@ struct otp_info {
 /* Get info about OOB modes (e.g., RAW, PLACE, AUTO) - legacy interface */
 #define MEMGETOOBSEL		_IOR('M', 10, struct nand_oobinfo)
 /* Check if an eraseblock is bad */
+
+
 #define MEMGETBADBLOCK		_IOW('M', 11, __kernel_loff_t)
 /* Mark an eraseblock as bad */
 #define MEMSETBADBLOCK		_IOW('M', 12, __kernel_loff_t)
+
 /* Set OTP (One-Time Programmable) mode (factory vs. user) */
 #define OTPSELECT		_IOR('M', 13, int)
 /* Get number of OTP (One-Time Programmable) regions */

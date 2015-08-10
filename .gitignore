@@ -14,7 +14,7 @@
 *.so
 *.mod.c
 *~
-
+*.diff
 #
 # Our programs
 #

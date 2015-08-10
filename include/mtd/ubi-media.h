@@ -30,7 +30,15 @@
 #ifndef __UBI_MEDIA_H__
 #define __UBI_MEDIA_H__
 
+#ifdef __linux__
 #include <asm/byteorder.h>
+#else
+#include <stdint.h>
+typedef uint8_t __u8;
+typedef uint16_t __be16;
+typedef uint32_t __be32;
+typedef uint64_t __be64;
+#endif
 
 /* The version of UBI images supported by this implementation */
 #define UBI_VERSION 1
@@ -311,6 +319,11 @@ struct ubi_vid_hdr {
 #define UBI_LAYOUT_VOLUME_EBS    2
 #define UBI_LAYOUT_VOLUME_NAME   "layout volume"
 #define UBI_LAYOUT_VOLUME_COMPAT UBI_COMPAT_REJECT
+
+/* UBI fastmap on-flash data structures */
+#define UBI_FM_SB_VOLUME_ID	(UBI_LAYOUT_VOLUME_ID + 1)
+#define UBI_FM_DATA_VOLUME_ID	(UBI_LAYOUT_VOLUME_ID + 2)
+
 
 /* The maximum number of volumes per one UBI device */
 #define UBI_MAX_VOLUMES 128

@@ -14,6 +14,13 @@ else
   LZOLDLIBS = -llzo2
 endif
 
+
+ifeq ($(shell uname -o),Cygwin)
+CPPFLAGS += -I./include/cygwin
+endif
+
+ifneq ($(shell uname -o),Cygwin)
+
 TESTS = tests
 
 MTD_BINS = \
@@ -33,6 +40,15 @@ UBI_BINS = \
 BINS = $(MTD_BINS)
 BINS += mkfs.ubifs/mkfs.ubifs
 BINS += $(addprefix ubi-utils/,$(UBI_BINS))
+else
+
+UBI_BINS = \
+	ubiupdatevol ubimkvol ubirmvol ubicrc32 ubinfo ubiattach \
+	ubidetach ubinize ubiformat ubirename mtdinfo ubirsvol ubiblock
+
+BINS = mkfs.ubifs/mkfs.ubifs
+BINS += $(addprefix ubi-utils/,$(UBI_BINS))
+endif
 SCRIPTS = flash_eraseall
 
 TARGETS = $(BINS)
@@ -59,7 +75,7 @@ endif
 		$(CLEAN_FIND) -exec rm -f {} \; ; \
 	fi
 	rm -f $(BUILDDIR)/include/version.h
-	$(MAKE) -C $(TESTS) clean
+	#$(MAKE) -C $(TESTS) clean
 
 install:: $(addprefix $(BUILDDIR)/,${BINS}) ${SCRIPTS}
 	mkdir -p ${DESTDIR}/${SBINDIR}
@@ -105,7 +121,7 @@ $(call _mkdep,lib/,libmtd.a)
 obj-mkfs.ubifs = crc16.o lpt.o compr.o devtable.o \
 	hashtable/hashtable.o hashtable/hashtable_itr.o
 LDFLAGS_mkfs.ubifs = $(ZLIBLDFLAGS) $(LZOLDFLAGS) $(UUIDLDFLAGS)
-LDLIBS_mkfs.ubifs = -lz -llzo2 -lm -luuid
+LDLIBS_mkfs.ubifs = -lz -llzo2 -lm -luuid 
 $(call mkdep,mkfs.ubifs/,mkfs.ubifs,,ubi-utils/libubi.a)
 
 #
@@ -117,7 +133,7 @@ obj-libubi.a       = libubi.o
 obj-libubigen.a    = libubigen.o
 
 obj-mtdinfo   = libubigen.a
-obj-ubinize   = libubigen.a libiniparser.a
+obj-ubinize   = libubigen.a libiniparser.a ubi-fastmap.o
 obj-ubiformat = libubigen.a libscan.a
 
 $(foreach v,libubi.a libubigen.a libiniparser.a libscan.a,$(eval $(call _mkdep,ubi-utils/,$(v))))

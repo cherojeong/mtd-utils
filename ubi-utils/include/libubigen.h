@@ -27,6 +27,7 @@
 
 #include <stdint.h>
 #include <mtd/ubi-media.h>
+#include <linux/list.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,6 +44,7 @@ extern "C" {
  * @vtbl_size: volume table size
  * @max_volumes: maximum amount of volumes
  * @image_seq: UBI image sequence number
+ * @max_leb_count: maximum logical erase block count
  */
 struct ubigen_info
 {
@@ -55,6 +57,7 @@ struct ubigen_info
 	int vtbl_size;
 	int max_volumes;
 	uint32_t image_seq;
+	uint32_t max_leb_count;
 };
 
 /**
@@ -74,6 +77,9 @@ struct ubigen_info
  * @bytes: size of the volume contents in bytes (relevant for static volumes
  *         only)
  * @flags: volume flags (%UBI_VTBL_AUTORESIZE_FLG)
+ * @pebs: array of PEBs assigned to the volume luns. Index of the array
+ *         is the lun
+ * @reserved_pebs: number of PEBs required for this volume
  */
 struct ubigen_vol_info
 {
@@ -88,6 +94,8 @@ struct ubigen_vol_info
 	int used_ebs;
 	long long bytes;
 	uint8_t flags;
+	int *pebs;
+	int reserved_pebs;
 };
 
 /**
@@ -100,10 +108,11 @@ struct ubigen_vol_info
  * @vid_hdr_offs: offset of the VID header
  * @ubi_ver: UBI version
  * @image_seq: UBI image sequence number
+ * @max_leb_count: maximum logical erase block count
  */
 void ubigen_info_init(struct ubigen_info *ui, int peb_size, int min_io_size,
 		      int subpage_size, int vid_hdr_offs, int ubi_ver,
-		      uint32_t image_seq);
+		      uint32_t image_seq, int max_leb_count);
 
 /**
  * ubigen_create_empty_vtbl - creates empty volume table.
@@ -151,7 +160,7 @@ void ubigen_init_vid_hdr(const struct ubigen_info *ui,
  * @vtbl.
  */
 int ubigen_add_volume(const struct ubigen_info *ui,
-		      const struct ubigen_vol_info *vi,
+		      struct ubigen_vol_info *vi,
 		      struct ubi_vtbl_record *vtbl);
 
 /**
@@ -162,14 +171,18 @@ int ubigen_add_volume(const struct ubigen_info *ui,
  * @bytes: volume size in bytes
  * @in: input file descriptor (has to be properly seeked)
  * @out: output file descriptor
+ * @used: linked list of used PEBs for writing the volume.
+ *      To be filled in by this function
+ * @used_cnt: number of PEBs used to write this volume
  *
  * This function reads the contents of the volume from the input file @in and
  * writes the UBI volume to the output file @out. Returns zero on success and
  * %-1 on failure.
  */
 int ubigen_write_volume(const struct ubigen_info *ui,
-			const struct ubigen_vol_info *vi, long long ec,
-			long long bytes, int in, int out);
+		struct ubigen_vol_info *vi, long long ec,
+		long long bytes, int in, int out, struct list_head *used,
+		int *used_cnt);
 
 /**
  * ubigen_write_layout_vol - write UBI layout volume
@@ -180,13 +193,15 @@ int ubigen_write_volume(const struct ubigen_info *ui,
  * @ec2: erase counter value for @peb1
  * @vtbl: volume table
  * @fd: output file descriptor seeked to the proper position
+ * @vi_layout: information about the layout volume
  *
  * This function creates the UBI layout volume which contains 2 copies of the
  * volume table. Returns zero in case of success and %-1 in case of failure.
  */
 int ubigen_write_layout_vol(const struct ubigen_info *ui, int peb1, int peb2,
 			    long long ec1, long long ec2,
-			    struct ubi_vtbl_record *vtbl, int fd);
+			    struct ubi_vtbl_record *vtbl, int fd,
+			    struct ubigen_vol_info *vi_layout);
 
 #ifdef __cplusplus
 }

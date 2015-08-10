@@ -1011,16 +1011,33 @@ static int add_inode_with_data(struct stat *st, ino_t inum, void *data,
 
 	if (c->default_compr != UBIFS_COMPR_NONE)
 		use_flags |= UBIFS_COMPR_FL;
+		
+	printf("add_inode_with_data input flags %x\n",flags);	
+		
+#ifdef FS_COMPR_FL
 	if (flags & FS_COMPR_FL)
 		use_flags |= UBIFS_COMPR_FL;
+#endif
+
+#ifdef FS_SYNC_FL		
 	if (flags & FS_SYNC_FL)
 		use_flags |= UBIFS_SYNC_FL;
+#endif
+
+#ifdef FS_IMMUTABLE_FL
 	if (flags & FS_IMMUTABLE_FL)
 		use_flags |= UBIFS_IMMUTABLE_FL;
+#endif
+
+#ifdef FS_APPEND_FL		
 	if (flags & FS_APPEND_FL)
 		use_flags |= UBIFS_APPEND_FL;
+#endif
+
+#ifdef FS_DIRSYNC_FL		
 	if (flags & FS_DIRSYNC_FL && S_ISDIR(st->st_mode))
 		use_flags |= UBIFS_DIRSYNC_FL;
+#endif
 
 	memset(ino, 0, UBIFS_INO_NODE_SZ);
 
@@ -1090,8 +1107,10 @@ static int add_dir_inode(DIR *dir, ino_t inum, loff_t size, unsigned int nlink,
 		fd = dirfd(dir);
 		if (fd == -1)
 			return sys_err_msg("dirfd failed");
+#ifdef FS_IOC_GETFLAGS
 		if (ioctl(fd, FS_IOC_GETFLAGS, &flags) == -1)
 			flags = 0;
+#endif			
 	}
 
 	return add_inode(st, inum, flags);
@@ -1275,10 +1294,12 @@ static int add_file(const char *path_name, struct stat *st, ino_t inum,
 		key_write(&key, &dn->key);
 		dn->size = cpu_to_le32(bytes_read);
 		out_len = NODE_BUFFER_SIZE - UBIFS_DATA_NODE_SZ;
+#ifdef FS_COMPR_FL
 		if (c->default_compr == UBIFS_COMPR_NONE &&
 		    (flags & FS_COMPR_FL))
 			use_compr = UBIFS_COMPR_LZO;
 		else
+#endif
 			use_compr = c->default_compr;
 		compr_type = compress_data(buf, bytes_read, &dn->data,
 					   &out_len, use_compr);
@@ -1320,8 +1341,10 @@ static int add_non_dir(const char *path_name, ino_t *inum, unsigned int nlink,
 		if (fd == -1)
 			return sys_err_msg("failed to open file '%s'",
 					   path_name);
+#ifdef FS_IOC_GETFLAGS
 		if (ioctl(fd, FS_IOC_GETFLAGS, &flags) == -1)
 			flags = 0;
+#endif			
 		if (close(fd) == -1)
 			return sys_err_msg("failed to close file '%s'",
 					   path_name);

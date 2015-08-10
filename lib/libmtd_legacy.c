@@ -23,6 +23,12 @@
  * not possible to get sub-page size.
  */
 
+
+
+
+
+
+
 #include <limits.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -31,6 +37,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#if __CYGWIN__
+#include <cygwin/ioctl.h>
+#endif
 #include <mtd/mtd-user.h>
 
 #include <libmtd.h>
