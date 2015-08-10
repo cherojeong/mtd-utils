@@ -15,6 +15,8 @@ https://dev.openwrt.org/browser/packages/utils/mtd-utils/patches/010-fix-rpmatch
 OTHER CYGWIN PATCH
 http://repository.timesys.com/buildsources/m/mtd-utils/mtd-utils-1.2.0/
 
+but this is exprimental version. under developing.
+
 by cherojeong@gmail.com
 
 
