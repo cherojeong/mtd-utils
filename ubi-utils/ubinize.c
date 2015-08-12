@@ -476,7 +476,7 @@ int main(int argc, char * const argv[])
 	struct ubigen_vol_info *vi;
 	int used_cnt = 0;
 	struct list_head used;
-	struct ubi_wl_peb *new_peb;
+	struct ubi_wl_peb *new_peb,*free_peb;
 
 	off_t seek;
 
@@ -668,19 +668,23 @@ int main(int argc, char * const argv[])
 			vi[sects].pebs[i] = i;
 		}
 		vi[sects].reserved_pebs = 2;
-
+	    
 		add_fastmap_data(&ui, 2, used_cnt-1, args.ec, &used,
 				vi, sects+1, args.out_fd);
 
-		//list_for_each_entry(new_peb, &used, list)
-		//		free(new_peb);
-
+		free_peb = list_entry((&used)->next, typeof(*free_peb), list);		
+				
+		do {
+			new_peb = free_peb;
+			/* get next peb struct point before free current peb struct */
+			free_peb = list_entry(free_peb->list.next, typeof(*free_peb), list);
+			free(new_peb);
+		}while(&free_peb->list != &used); 		
 
 		for (i = 0; i < sects; i++)
 			free(vi[i].pebs);
 	}
-
-	verbose(args.verbose, "done");
+	
 	free(vi);
 	iniparser_freedict(args.dict);
 	free(vtbl);
@@ -688,8 +692,15 @@ int main(int argc, char * const argv[])
 	return 0;
 
 out_free:
-	list_for_each_entry(new_peb, &used, list)
+	free_peb = list_entry((&used)->next, typeof(*free_peb), list);	
+	
+	do {
+		new_peb = free_peb;
+		/* get next peb struct point before free current peb struct */
+		free_peb = list_entry(free_peb->list.next, typeof(*free_peb), list);
 		free(new_peb);
+	}while(&free_peb->list != &used); 	
+	
 	for (i = 0; i < sects; i++)
 		free(vi[i].pebs);
 	free(vi);

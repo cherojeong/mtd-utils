@@ -346,10 +346,16 @@ int parse_devtable(const char *tbl_file)
 	while (getline(&line, &len, f) != -1) {
 		/* First trim off any white-space */
 		len = strlen(line);
-
+#if __CYGWIN__
+		/* Trim trailing white-space */
+		while (len > 0 && isspace((int)line[len - 1]))
+			line[--len] = '\0';
+#else
 		/* Trim trailing white-space */
 		while (len > 0 && isspace(line[len - 1]))
 			line[--len] = '\0';
+
+#endif	
 		/* Trim leading white-space */
 		memmove(line, &line[strspn(line, " \n\r\t\v")], len);
 

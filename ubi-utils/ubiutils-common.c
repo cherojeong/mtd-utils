@@ -150,7 +150,11 @@ void ubiutils_print_text(FILE *stream, const char *text, int width)
 	p = text;
 	pos = 0;
 	while (p[pos]) {
+#if __CYGWIN__		
+		while (!isspace((int)p[pos])) {
+#else
 		while (!isspace(p[pos])) {
+#endif	
 			line[pos] = p[pos];
 			if (!p[pos])
 				break;
@@ -168,7 +172,11 @@ void ubiutils_print_text(FILE *stream, const char *text, int width)
 				bpos = pos;
 				break;
 			}
+#if __CYGWIN__			
+			if (isspace((int)p[pos]))
+#else
 			if (isspace(p[pos]))
+#endif	
 				bpos = pos;
 			++pos;
 		}
@@ -176,7 +184,11 @@ void ubiutils_print_text(FILE *stream, const char *text, int width)
 		fprintf(stream, "%s\n", line);
 		p += bpos;
 		pos = 0;
+#if __CYGWIN__					
+		while (p[pos] && isspace((int)p[pos]))
+#else
 		while (p[pos] && isspace(p[pos]))
+#endif	
 			++p;
 	}
 }

@@ -1008,11 +1008,11 @@ static int add_inode_with_data(struct stat *st, ino_t inum, void *data,
 	struct ubifs_ino_node *ino = node_buf;
 	union ubifs_key key;
 	int len, use_flags = 0;
-
+#if __CYGWIN__
+	flags = flags;
+#endif	
 	if (c->default_compr != UBIFS_COMPR_NONE)
 		use_flags |= UBIFS_COMPR_FL;
-		
-	printf("add_inode_with_data input flags %x\n",flags);	
 		
 #ifdef FS_COMPR_FL
 	if (flags & FS_COMPR_FL)

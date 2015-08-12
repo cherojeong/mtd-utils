@@ -92,6 +92,7 @@ static void init_vid_hdr(const struct ubigen_info *ui,
 
 	hdr->vol_type = UBI_VID_DYNAMIC;
 	hdr->vol_id = cpu_to_be32(vol_id);
+
 	hdr->compat = UBI_COMPAT_DELETE;
 	hdr->magic = cpu_to_be32(UBI_VID_HDR_MAGIC);
 	hdr->version = ui->ubi_ver;

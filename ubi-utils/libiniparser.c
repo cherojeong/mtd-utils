@@ -573,12 +573,21 @@ dictionary * iniparser_load(const char * ininame)
             fclose(in);
             return NULL ;
         }
+#if __CYGWIN__		
+        /* Get rid of \n and spaces at end of line */
+        while ((len>=0) &&
+                ((line[len]=='\n') || (isspace((int)line[len])))) {
+            line[len]=0 ;
+            len-- ;
+        }
+#else		
         /* Get rid of \n and spaces at end of line */
         while ((len>=0) &&
                 ((line[len]=='\n') || (isspace(line[len])))) {
             line[len]=0 ;
             len-- ;
         }
+#endif	
         /* Detect multi-line */
         if (line[len]=='\\') {
             /* Multi-line value */

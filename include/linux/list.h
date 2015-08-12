@@ -14,7 +14,13 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
-#define cygwin_offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#ifdef offsetof
+#undef offsetof
+#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#endif
+
+//#include <stddef.h>
+
 
 /**
  * container_of - cast a member of a structure out to the containing structure
@@ -23,9 +29,9 @@
  * @member:	the name of the member within the struct.
  *
  */
-#define cygwin_container_of(ptr, type, member) ({			\
+#define container_of(ptr, type, member) ({			\
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-	(type *)( (char *)__mptr - cygwin_offsetof(type,member) );})
+	(type *)( (char *)__mptr - offsetof(type,member) );})
 
 struct list_head {
 	struct list_head *next, *prev;
@@ -114,6 +120,10 @@ static inline void __list_del_entry(struct list_head *entry)
  * under normal circumstances, used to verify that nobody uses
  * non-initialized list entries.
  */
+ 
+//#define LIST_POISON1  ((void *) 0x0)
+//#define LIST_POISON2  ((void *) 0x0)
+ 
 #define LIST_POISON1  ((void *) 0x00100100)
 #define LIST_POISON2  ((void *) 0x00200200)
 
@@ -360,7 +370,7 @@ static inline void list_splice_tail_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_entry(ptr, type, member) \
-	cygwin_container_of(ptr, type, member)
+	container_of(ptr, type, member)
 
 /**
  * list_first_entry - get the first element from a list
@@ -401,7 +411,7 @@ static inline void list_splice_tail_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_next_entry(pos, member) \
-	list_entry((pos)->member.next, typeof(*(pos)), member)
+	list_entry((pos)->member.next, typeof(*pos), member)
 
 /**
  * list_prev_entry - get the prev element in list
@@ -409,7 +419,7 @@ static inline void list_splice_tail_init(struct list_head *list,
  * @member:	the name of the list_struct within the struct.
  */
 #define list_prev_entry(pos, member) \
-	list_entry((pos)->member.prev, typeof(*(pos)), member)
+	list_entry((pos)->member.prev, typeof(*pos)), member)
 
 /**
  * list_for_each	-	iterate over a list
@@ -454,11 +464,14 @@ static inline void list_splice_tail_init(struct list_head *list,
  * @head:	the head for your list.
  * @member:	the name of the list_struct within the struct.
  */
+ 
 #define list_for_each_entry(pos, head, member)				\
 	for (pos = list_first_entry(head, typeof(*pos), member);	\
 	     &pos->member != (head);					\
 	     pos = list_next_entry(pos, member))
 
+ 
+		 
 /**
  * list_for_each_entry_reverse - iterate backwards over list of given type.
  * @pos:	the type * to use as a loop cursor.

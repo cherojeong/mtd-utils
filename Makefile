@@ -6,7 +6,7 @@ VERSION = 1.5.1
 CPPFLAGS += -D_GNU_SOURCE -I./include -I$(BUILDDIR)/include -I./ubi-utils/include $(ZLIBCPPFLAGS) $(LZOCPPFLAGS) $(UUIDCPPFLAGS)
 
 ifeq ($(WITHOUT_XATTR), 1)
-  CPPFLAGS += -DWITHOUT_XATTR
+  CPPFLAGS += -DWITHOUT_XATTR 
 endif
 ifeq ($(WITHOUT_LZO), 1)
   CPPFLAGS += -DWITHOUT_LZO
@@ -16,7 +16,7 @@ endif
 
 
 ifeq ($(shell uname -o),Cygwin)
-CPPFLAGS += -I./include/cygwin
+CPPFLAGS += -g -I./include/cygwin
 endif
 
 ifneq ($(shell uname -o),Cygwin)
